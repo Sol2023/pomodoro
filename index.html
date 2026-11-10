@@ -13,6 +13,9 @@ input,select,button{border:1px solid var(--line);border-radius:10px;background:v
 @media(max-width:740px){.grid{grid-template-columns:1fr}main{padding-top:27px}.card{padding:18px}.top,main{width:calc(100% - 28px)}.top{height:60px}}
 .group{margin-top:12px;padding-top:10px}.group summary strong{float:right;margin-left:10px}.group summary,.metric span{overflow-wrap:anywhere}.group .metric{padding-left:14px}.settings label{min-width:0}.item-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) auto;gap:8px;align-items:end}@media(max-width:410px){.item-fields{grid-template-columns:minmax(0,1fr) auto}.item-fields label:first-child{grid-column:1/-1}}
 </style>
+<style>
+.record-actions,.trend-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.record-actions{justify-content:flex-end;flex-shrink:0}.trend-card{margin-top:20px}.trend-actions select{width:auto}.trend-nav{display:flex;align-items:center;gap:8px;margin-top:12px}.trend-nav button{padding:4px 10px}.trend-nav strong{font-size:13px}.trend-scroll{overflow-x:auto;padding:8px 3px 5px}.trend-plot{display:grid;gap:4px;min-width:var(--plot-width);margin-top:8px}.trend-day{padding:0;border:0;display:grid;grid-template-rows:145px 24px;background:transparent;align-items:end;min-width:0}.trend-day:hover,.trend-day[aria-current=true]{background:#f2ece2}.trend-stack{height:100%;display:flex;flex-direction:column-reverse;align-items:stretch;max-width:44px;width:75%;margin:auto;border-bottom:1px solid var(--line)}.trend-stack span{display:block;flex:none}.trend-day small{align-self:center;white-space:nowrap;font-size:11px}.legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:0;margin:12px 0 0;list-style:none}.legend li{display:flex;align-items:center;gap:6px;overflow-wrap:anywhere}.swatch{width:10px;height:10px;border-radius:2px;flex:none}dialog{width:min(420px,calc(100% - 28px));border:1px solid var(--line);border-radius:18px;background:var(--white);color:var(--ink);padding:22px}dialog::backdrop{background:#28272066}.edit-buttons{justify-content:flex-end}
+</style>
 </head>
 <body>
 <header><div class="top"><div class="brand"><span class="dot" aria-hidden="true">●</span>番茄工位</div><span class="local">记录保存在此浏览器</span></div></header>
@@ -34,7 +37,7 @@ input,select,button{border:1px solid var(--line);border-radius:10px;background:v
 <div class="head"><h2 id="daily-title">每日专注</h2><input class="date" type="date" id="day" aria-label="查看日期"></div>
 <div class="total" id="total">0 分钟</div><div class="small" id="count">0 条记录</div>
 <div class="summary" id="summary"></div>
-<details><summary>查看记录明细</summary><div id="records"></div></details>
+<details id="record-details"><summary>查看记录明细</summary><div id="records"></div></details>
 <details><summary>手动补记</summary>
 <form class="form" id="manual"><label>事项<select id="manual-project"></select></label><div class="row"><label>日期<input type="date" id="manual-date" required></label><label>分钟<input type="number" id="manual-minutes" min="1" max="1440" required placeholder="例如 35"></label></div><button type="submit">保存记录</button></form>
 </details>
@@ -47,8 +50,25 @@ input,select,button{border:1px solid var(--line);border-radius:10px;background:v
 </section>
 </div>
 </div>
+<section class="card trend-card" aria-labelledby="trend-title">
+<div class="head"><h2 id="trend-title">专注趋势</h2><div class="trend-actions"><select id="trend-period" aria-label="统计周期"><option value="week">每周</option><option value="month">每月</option></select><select id="trend-category" aria-label="筛选大类"></select></div></div>
+<div class="trend-nav"><button type="button" id="trend-prev" aria-label="上一周期">‹</button><strong id="trend-range"></strong><button type="button" id="trend-next" aria-label="下一周期">›</button><button type="button" id="trend-now">本期</button></div>
+<p class="small" id="trend-info"></p>
+<div class="trend-scroll"><div id="trend-chart" class="trend-plot" role="group" aria-label="每日用时堆叠柱状图"></div></div>
+<ul id="trend-legend" class="legend small" aria-label="各项累计用时"></ul>
+</section>
 <footer>统计使用设备的本地日期。休息时间不会计入专注时长。</footer>
 </main>
+<dialog id="edit-dialog" aria-labelledby="edit-title">
+<h2 id="edit-title">编辑专注记录</h2>
+<form id="edit-form" class="form">
+<label>事项<select id="edit-project" required></select></label>
+<label>日期<input id="edit-date" type="date" required></label>
+<div class="row"><label>分钟<input id="edit-minutes" type="number" min="0" step="1" required></label><label>秒<input id="edit-seconds" type="number" min="0" max="59" step="1" required></label></div>
+<div class="msg" id="edit-message" role="status"></div>
+<div class="actions edit-buttons"><button type="button" id="edit-cancel">取消</button><button type="submit" class="primary">保存修改</button></div>
+</form>
+</dialog>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -77,7 +97,29 @@ function restoreCategories() {
     {id:'ai-infra-project-1', name:'Project 1', category:'ai-infra'}
   );
 }
-restoreCategories();
+function nameKey(name) {
+  return name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+function restoreData() {
+  restoreCategories();
+  const canonical = new Map();
+  const duplicates = new Map();
+  data.projects = data.projects.filter(project => {
+    const key = JSON.stringify([project.category, nameKey(project.name)]);
+    const existing = canonical.get(key);
+    if (existing) {
+      duplicates.set(project.id, existing);
+      return false;
+    }
+    canonical.set(key, project.id);
+    return true;
+  });
+  if (!duplicates.size) return;
+  for (const record of data.records) record.project = duplicates.get(record.project) ?? record.project;
+  data.selected = duplicates.get(data.selected) ?? data.selected;
+  if (data.session) data.session.project = duplicates.get(data.session.project) ?? data.session.project;
+}
+restoreData();
 
 function save() {
   try {
@@ -102,7 +144,7 @@ function human(ms) {
   return Math.floor(minutes / 60) + ' 小时' + (rest ? ' ' + rest + ' 分钟' : '');
 }
 function fillProjects() {
-  for (const picker of [$('project'), $('manual-project')]) {
+  for (const picker of [$('project'), $('manual-project'), $('edit-project')]) {
     const selected = picker.id === 'project' ? data.selected : picker.value || data.selected;
     picker.replaceChildren();
     for (const category of data.categories) {
@@ -119,6 +161,10 @@ function fillProjects() {
   const selectedCategory = categoryPicker.value || data.categories[0].id;
   categoryPicker.replaceChildren(...data.categories.map(category => new Option(category.name, category.id)));
   categoryPicker.value = selectedCategory;
+  const trendPicker = $('trend-category');
+  const selectedTrend = trendPicker.value;
+  trendPicker.replaceChildren(new Option('所有大类', ''), ...data.categories.map(category => new Option(category.name, category.id)));
+  trendPicker.value = selectedTrend;
 }
 function element(tag, value, className) {
   const el = document.createElement(tag);
@@ -127,6 +173,7 @@ function element(tag, value, className) {
   return el;
 }
 function renderDaily() {
+  renderTrend();
   const records = data.records.filter(r => r.day === $('day').value).sort((a, b) => b.at - a.at);
   const total = records.reduce((sum, r) => sum + r.ms, 0);
   $('total').textContent = total ? human(total) : '0 分钟';
@@ -165,6 +212,9 @@ function renderDaily() {
     const name = category.name + ' / ' + project.name;
     label.append(element('strong', name), element('span', (record.manual ? '手动补记' : '番茄钟') + ' · ' + human(record.ms), 'small'));
     const remove = element('button', '删除', 'ghost');
+    const edit = element('button', '编辑', 'ghost');
+    edit.setAttribute('aria-label', '编辑 ' + name + ' 的记录');
+    edit.onclick = () => openEdit(record);
     remove.setAttribute('aria-label', '删除 ' + name + ' 的 ' + human(record.ms) + '记录');
     remove.onclick = () => {
       if (!confirm('删除这条专注记录？')) return;
@@ -172,7 +222,9 @@ function renderDaily() {
       save();
       renderDaily();
     };
-    row.append(label, remove);
+    const actions = element('div', '', 'record-actions');
+    actions.append(edit, remove);
+    row.append(label, actions);
     $('records').append(row);
   }
 }
@@ -187,6 +239,147 @@ function projectMetric(name, ms, total) {
   metric.append(label, track);
   return metric;
 }
+let editingId;
+function openEdit(record) {
+  editingId = record.id;
+  $('edit-project').value = record.project;
+  $('edit-date').value = record.day;
+  const seconds = Math.floor(record.ms / 1000);
+  $('edit-minutes').value = Math.floor(seconds / 60);
+  $('edit-seconds').value = seconds % 60;
+  $('edit-message').textContent = '';
+  $('edit-dialog').showModal();
+}
+$('edit-cancel').onclick = () => $('edit-dialog').close();
+$('edit-form').onsubmit = event => {
+  event.preventDefault();
+  const record = data.records.find(record => record.id === editingId);
+  if (!record) {
+    $('edit-message').textContent = '这条记录已被删除。';
+    return;
+  }
+  const seconds = 60 * Number($('edit-minutes').value) + Number($('edit-seconds').value);
+  const existingSeconds = Math.floor(record.ms / 1000);
+  if ((seconds < 1 && seconds !== existingSeconds) || seconds > 86400) {
+    $('edit-message').textContent = '请输入 1 秒到 24 小时之间的时长。';
+    return;
+  }
+  record.project = $('edit-project').value;
+  record.day = $('edit-date').value;
+  if (seconds !== existingSeconds) record.ms = seconds * 1000;
+  save();
+  $('edit-dialog').close();
+  $('day').value = record.day;
+  $('day').onchange();
+  $('daily-message').textContent = '记录已更新。';
+};
+
+const chartColors = ['#ab3d2d','#476548','#335f87','#976b22','#87517d','#2e7974','#6a5a48','#a65c76'];
+let trendAnchor = dayOf();
+function dateFromDay(day) {
+  return new Date(day + 'T00:00:00');
+}
+function offsetDay(date, offset) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + offset);
+}
+function trendPeriod() {
+  const anchor = dateFromDay(trendAnchor);
+  if ($('trend-period').value === 'month') {
+    const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1);
+    return {start, end};
+  }
+  const start = offsetDay(anchor, -(anchor.getDay() + 6) % 7);
+  return {start, end:offsetDay(start, 7)};
+}
+function renderTrend() {
+  const {start, end} = trendPeriod();
+  const first = dayOf(start);
+  const last = dayOf(offsetDay(end, -1));
+  $('trend-range').textContent = first + ' 至 ' + last;
+  const category = $('trend-category').value;
+  const series = category
+    ? data.projects.filter(project => project.category === category)
+    : data.categories;
+  const projects = new Map(data.projects.map(project => [project.id, project]));
+  const byDay = new Map();
+  const totals = new Map();
+  for (const record of data.records) {
+    if (record.day < first || record.day > last) continue;
+    const project = projects.get(record.project);
+    if (!project || (category && project.category !== category)) continue;
+    const key = category ? project.id : project.category;
+    if (!byDay.has(record.day)) byDay.set(record.day, {total:0, items:new Map()});
+    const entry = byDay.get(record.day);
+    entry.total += record.ms;
+    entry.items.set(key, (entry.items.get(key) || 0) + record.ms);
+    totals.set(key, (totals.get(key) || 0) + record.ms);
+  }
+  const chart = $('trend-chart');
+  const legend = $('trend-legend');
+  chart.replaceChildren();
+  legend.replaceChildren();
+  const total = [...totals.values()].reduce((sum, ms) => sum + ms, 0);
+  $('trend-info').textContent = total ? '合计 ' + human(total) + ' · 点柱子查看当天记录' : '这个周期还没有专注记录。';
+  if (!total) return;
+  const peak = Math.max(...[...byDay.values()].map(entry => entry.total));
+  const shown = series.map((item, index) => ({...item, color:chartColors[index % chartColors.length]}))
+    .filter(item => totals.has(item.id));
+  for (const item of shown) {
+    const row = element('li', '');
+    const swatch = element('span', '', 'swatch');
+    swatch.style.backgroundColor = item.color;
+    row.append(swatch, element('span', item.name + ' · ' + human(totals.get(item.id))));
+    legend.append(row);
+  }
+  let count = 0;
+  for (let date = start; date < end; date = offsetDay(date, 1)) {
+    const day = dayOf(date);
+    const entry = byDay.get(day);
+    const button = element('button', '', 'trend-day');
+    button.type = 'button';
+    const parts = [];
+    const stack = element('span', '', 'trend-stack');
+    stack.setAttribute('aria-hidden', 'true');
+    for (const item of shown) {
+      const ms = entry?.items.get(item.id);
+      if (!ms) continue;
+      const segment = element('span', '');
+      segment.style.height = (ms / peak * 100) + '%';
+      segment.style.backgroundColor = item.color;
+      stack.append(segment);
+      parts.push(item.name + ' ' + human(ms));
+    }
+    const label = day + ' · ' + (entry ? human(entry.total) + '（' + parts.join('，') + '）' : '0 分钟');
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    button.setAttribute('aria-current', String(day === $('day').value));
+    button.onclick = () => {
+      $('day').value = day;
+      $('day').onchange();
+      $('record-details').open = true;
+    };
+    button.append(stack, element('small', $('trend-period').value === 'month' ? String(date.getDate()) : day.slice(5)));
+    chart.append(button);
+    count++;
+  }
+  chart.style.gridTemplateColumns = 'repeat(' + count + ', minmax(0, 1fr))';
+  chart.style.setProperty('--plot-width', count * (count > 7 ? 20 : 39) + 'px');
+}
+$('trend-period').onchange = renderTrend;
+$('trend-category').onchange = renderTrend;
+$('trend-prev').onclick = () => {
+  trendAnchor = dayOf(offsetDay(trendPeriod().start, -1));
+  renderTrend();
+};
+$('trend-next').onclick = () => {
+  trendAnchor = dayOf(trendPeriod().end);
+  renderTrend();
+};
+$('trend-now').onclick = () => {
+  trendAnchor = dayOf();
+  renderTrend();
+};
 let mode = data.session?.mode || 'focus';
 let audioContext;
 let tickBuffer;
@@ -350,6 +543,7 @@ $('project').onchange = () => {
 };
 $('day').onchange = () => {
   if (!$('day').value) $('day').value = dayOf();
+  trendAnchor = $('day').value;
   $('manual-date').value = $('day').value;
   $('daily-message').textContent = '';
   renderDaily();
@@ -359,6 +553,7 @@ $('manual').onsubmit = event => {
   const day = $('manual-date').value;
   data.records.push({id:id(), project:$('manual-project').value, day, ms:$('manual-minutes').valueAsNumber*60000, at:Date.now(), manual:true});
   $('day').value = day;
+  trendAnchor = day;
   $('manual-minutes').value = '';
   $('daily-message').textContent = '补记已保存。';
   save();
@@ -388,7 +583,7 @@ $('add').onsubmit = event => {
     $('add-message').textContent = '请输入事项名称。';
     return;
   }
-  if (data.projects.some(p => p.name.toLowerCase() === name.toLowerCase() && p.category === category)) {
+  if (data.projects.some(p => nameKey(p.name) === nameKey(name) && p.category === category)) {
     $('add-message').textContent = '这个大类下已有同名事项。';
     return;
   }
@@ -403,7 +598,7 @@ $('add').onsubmit = event => {
 window.addEventListener('storage', event => {
   if (event.key !== key || !event.newValue) return;
   data = JSON.parse(event.newValue);
-  restoreCategories();
+  restoreData();
   $('tick-sound').checked = data.tickSound !== false;
   mode = data.session?.mode || 'focus';
   $('duration').value = data.minutes;
