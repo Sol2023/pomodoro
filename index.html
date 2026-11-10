@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>番茄工位 · 专注计时与每日记录</title>
-<meta name="description" content="按学习科目和项目记录每天的专注时间。">
+<title>Focus Desk · Pomodoro and daily log</title>
+<meta name="description" content="Track daily focus time by study topic and project.">
 <style>
 :root{color-scheme:light;--paper:#f6f2ea;--white:#fffdf8;--ink:#282720;--muted:#635f55;--line:#e5ded0;--red:#ab3d2d;--soft:#fae9df;--green:#476548}
 *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.6 system-ui,"Microsoft YaHei",sans-serif}button,input,select{font:inherit;color:inherit}button{cursor:pointer}button:disabled{opacity:.48;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #548655;outline-offset:3px}
@@ -12,6 +12,8 @@ main{padding:42px 0 24px}.eyebrow{color:var(--red);font-size:11px;letter-spacing
 input,select,button{border:1px solid var(--line);border-radius:10px;background:var(--white);padding:8px 11px;min-width:0}input,select{width:100%}.row>*{flex:1}.row>button{flex:none}.primary{background:var(--red);color:white;border-color:var(--red);font-weight:700}.ghost{background:transparent}.timer{text-align:center}.timer .head{text-align:left}.ring{margin:24px auto 20px;width:220px;max-width:100%;aspect-ratio:1;display:grid;place-items:center;border-radius:50%;background:conic-gradient(var(--red) var(--arc,100%),var(--soft) 0);padding:6px}.face{background:var(--white);width:100%;height:100%;border-radius:50%;display:grid;align-content:center}.time{font-size:52px;font-weight:750;line-height:1.15;font-variant-numeric:tabular-nums;letter-spacing:-.06em}.face small{color:var(--muted);margin-top:6px}.timer .actions{justify-content:center;margin:14px 0 20px}.timer .actions button{padding:9px 15px}.settings{border-top:1px solid var(--line);padding-top:13px;text-align:left}label{display:block;font-size:12px;font-weight:700}label input,label select{display:block;margin-top:4px;font-weight:400}.col{display:grid;gap:20px}.total{font-size:38px;line-height:1.3;letter-spacing:-.05em;font-weight:780;margin-top:16px}.date{width:auto}.empty{padding:16px 0 7px;color:var(--muted);font-size:13px}.summary{padding-top:6px}.metric{margin-top:10px}.metric div:first-child,.record{display:flex;justify-content:space-between;align-items:center;gap:10px}.track{margin-top:5px;height:5px;border-radius:99px;background:var(--soft);overflow:hidden}.track span{display:block;height:100%;background:var(--red)}.record{border-top:1px solid var(--line);padding:9px 0;overflow-wrap:anywhere}.record strong{display:block}.record button{padding:3px 7px;font-size:12px}.record:first-child{margin-top:8px}details{border-top:1px solid var(--line);margin-top:16px;padding-top:11px}summary{cursor:pointer;font-weight:650}.form{margin-top:12px;display:grid;gap:10px}.msg{min-height:1.6em;margin-top:10px;color:var(--green);font-size:13px}footer{font-size:12px;color:var(--muted);text-align:center;margin:22px 0 0}
 @media(max-width:740px){.grid{grid-template-columns:1fr}main{padding-top:27px}.card{padding:18px}.top,main{width:calc(100% - 28px)}.top{height:60px}}
 .group{margin-top:12px;padding-top:10px}.group summary strong{float:right;margin-left:10px}.group summary,.metric span{overflow-wrap:anywhere}.group .metric{padding-left:14px}.settings label{min-width:0}.item-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) auto;gap:8px;align-items:end}@media(max-width:410px){.item-fields{grid-template-columns:minmax(0,1fr) auto}.item-fields label:first-child{grid-column:1/-1}}
+
+.top .local{margin-left:auto}.language{display:flex;align-items:center;gap:7px}.language select{width:auto;margin:0;padding:5px 8px}.timer .actions{flex-wrap:wrap}@media(max-width:480px){.top .local,.language span{display:none}}
 </style>
 <style>
 textarea{font:inherit;color:inherit;background:var(--white);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%;resize:vertical;margin-top:4px;font-weight:400}textarea:focus-visible{outline:3px solid #548655;outline-offset:3px}.focus-note{text-align:left;margin-top:14px}.record-note{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;margin:5px 0 0}
@@ -21,70 +23,88 @@ textarea{font:inherit;color:inherit;background:var(--white);border:1px solid var
 </style>
 </head>
 <body>
-<header><div class="top"><div class="brand"><span class="dot" aria-hidden="true">●</span>番茄工位</div><span class="local">记录保存在此浏览器</span></div></header>
+<header><div class="top"><div class="brand"><span class="dot" aria-hidden="true">●</span><span data-zh="番茄工位">Focus Desk</span></div><span class="local"><span data-zh="记录保存在此浏览器">Saved in this browser</span></span><label class="language"><span data-zh="界面语言">Language</span><select id="language" aria-label="Language" data-zh-aria-label="界面语言"><option value="en" lang="en">English</option><option value="zh-CN" lang="zh-CN">简体中文</option></select></label></div></header>
 <main>
 <div class="eyebrow">FOCUS JOURNAL</div>
-<h1>把专注的时间记下来</h1>
-<p>选一个学习科目或项目，开始计时。每天花了多久，随时可以回看。</p>
+<h1><span data-zh="把专注的时间记下来">Make time for focused work</span></h1>
+<p><span data-zh="选一个学习科目或项目，开始计时。每天花了多久，随时可以回看。">Pick a study topic or project, start the timer, and see where your time goes.</span></p>
 <div class="grid">
 <section class="card timer" aria-labelledby="timer-title">
-<div class="head"><h2 id="timer-title">番茄钟</h2><span class="tag" id="mode">专注</span></div>
-<div class="ring" id="ring"><div class="face"><div class="time" id="clock" role="timer">25:00</div><small id="state">准备开始</small></div></div>
-<div class="actions"><button class="primary" id="start">开始专注</button><button id="finish" disabled>结束并记录</button><button id="switch" class="ghost">休息 5 分钟</button></div>
-<div class="settings row"><label>当前事项<select id="project"></select></label><label style="flex:0 0 108px">专注时长（分钟）<input id="duration" type="number" min="1" max="180" value="25" required></label></div>
-<label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px"><input id="tick-sound" type="checkbox" style="width:auto;margin:0;accent-color:var(--red)">专注滴答声</label>
-<div class="focus-note"><label for="focus-note">学到了什么 <span class="small">（选填）</span></label><textarea id="focus-note" rows="3" maxlength="2000" aria-describedby="note-hint" placeholder="例如：理解了 KV Cache 如何减少重复计算"></textarea><p class="small" id="note-hint">草稿会自动保留，结束专注时随记录一起保存。</p></div>
+<div class="head"><h2 id="timer-title"><span data-zh="番茄钟">Pomodoro timer</span></h2><span class="tag" id="mode"><span data-zh="专注">Focus</span></span></div>
+<div class="ring" id="ring"><div class="face"><div class="time" id="clock" role="timer">25:00</div><small id="state"><span data-zh="准备开始">Ready to start</span></small></div></div>
+<div class="actions"><button class="primary" id="start"><span data-zh="开始专注">Start focus</span></button><button id="finish" disabled><span data-zh="结束并记录">End and log</span></button><button id="switch" class="ghost"><span data-zh="休息 5 分钟">5-minute break</span></button></div>
+<div class="settings row"><label><span data-zh="当前事项">Current item</span><select id="project"></select></label><label style="flex:0 0 108px"><span data-zh="专注时长（分钟）">Focus length (min)</span><input id="duration" type="number" min="1" max="180" value="25" required></label></div>
+<label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px"><input id="tick-sound" type="checkbox" style="width:auto;margin:0;accent-color:var(--red)"><span data-zh="专注滴答声">Ticking sound</span></label>
+<div class="focus-note"><label for="focus-note"><span data-zh="学到了什么">What did you learn?</span> <span class="small"><span data-zh="（选填）">(optional)</span></span></label><textarea id="focus-note" rows="3" maxlength="2000" aria-describedby="note-hint" placeholder="e.g. How the KV cache avoids repeated computation" data-zh-placeholder="例如：理解了 KV Cache 如何减少重复计算"></textarea><p class="small" id="note-hint"><span data-zh="草稿会自动保留，结束专注时随记录一起保存。">Your draft is saved automatically and attached when you finish focusing.</span></p></div>
 <div class="msg" id="timer-message" role="status"></div>
 </section>
 <div class="col">
 <section class="card" aria-labelledby="daily-title">
-<div class="head"><h2 id="daily-title">每日专注</h2><input class="date" type="date" id="day" aria-label="查看日期"></div>
-<div class="total" id="total">0 分钟</div><div class="small" id="count">0 条记录</div>
+<div class="head"><h2 id="daily-title"><span data-zh="每日专注">Daily focus</span></h2><input class="date" type="date" id="day" aria-label="Date to view" data-zh-aria-label="查看日期"></div>
+<div class="total" id="total"><span data-zh="0 分钟">0 min</span></div><div class="small" id="count"><span data-zh="0 条记录">0 records</span></div>
 <div class="summary" id="summary"></div>
-<details id="record-details"><summary>查看记录明细</summary><div id="records"></div></details>
-<details><summary>手动补记</summary>
-<form class="form" id="manual"><label>事项<select id="manual-project"></select></label><div class="row"><label>日期<input type="date" id="manual-date" required></label><label>分钟<input type="number" id="manual-minutes" min="1" max="1440" required placeholder="例如 35"></label></div><button type="submit">保存记录</button></form>
+<details id="record-details"><summary><span data-zh="查看记录明细">View records</span></summary><div id="records"></div></details>
+<details><summary><span data-zh="手动补记">Add time manually</span></summary>
+<form class="form" id="manual"><label><span data-zh="事项">Item</span><select id="manual-project"></select></label><div class="row"><label><span data-zh="日期">Date</span><input type="date" id="manual-date" required></label><label><span data-zh="分钟">Minutes</span><input type="number" id="manual-minutes" min="1" max="1440" required placeholder="e.g. 35" data-zh-placeholder="例如 35"></label></div><button type="submit"><span data-zh="保存记录">Save record</span></button></form>
 </details>
 <div class="msg" id="daily-message" role="status"></div>
 </section>
-<section class="card"><div class="head"><h2>大类与事项</h2></div><p class="small">在每个大类下添加具体的学习内容或项目。</p>
-<form class="form" id="add-category"><div class="row"><input id="category-name" maxlength="36" required placeholder="例如 系统设计" aria-label="大类名称"><button type="submit">新增大类</button></div></form>
-<form class="form" id="add"><div class="item-fields"><label>所属大类<select id="category" required></select></label><label>事项名称<input id="name" maxlength="36" required placeholder="例如 Project 2"></label><button type="submit">添加事项</button></div></form>
+<section class="card"><div class="head"><h2><span data-zh="大类与事项">Categories and items</span></h2></div><p class="small"><span data-zh="在每个大类下添加具体的学习内容或项目。">Group study topics and projects under categories.</span></p>
+<form class="form" id="add-category"><div class="row"><input id="category-name" maxlength="36" required placeholder="e.g. Systems Design" data-zh-placeholder="例如 系统设计" aria-label="Category name" data-zh-aria-label="大类名称"><button type="submit"><span data-zh="新增大类">Add category</span></button></div></form>
+<form class="form" id="add"><div class="item-fields"><label><span data-zh="所属大类">Category</span><select id="category" required></select></label><label><span data-zh="事项名称">Item name</span><input id="name" maxlength="36" required placeholder="e.g. Project 2" data-zh-placeholder="例如 Project 2"></label><button type="submit"><span data-zh="添加事项">Add item</span></button></div></form>
 <div class="msg" id="add-message" role="status"></div>
 </section>
 </div>
 </div>
 <section class="card trend-card" aria-labelledby="trend-title">
-<div class="head"><h2 id="trend-title">专注趋势</h2><div class="trend-actions"><select id="trend-period" aria-label="统计周期"><option value="week">每周</option><option value="month">每月</option></select><select id="trend-category" aria-label="筛选大类"></select></div></div>
-<div class="trend-nav"><button type="button" id="trend-prev" aria-label="上一周期">‹</button><strong id="trend-range"></strong><button type="button" id="trend-next" aria-label="下一周期">›</button><button type="button" id="trend-now">本期</button></div>
+<div class="head"><h2 id="trend-title"><span data-zh="专注趋势">Focus trends</span></h2><div class="trend-actions"><select id="trend-period" aria-label="Time period" data-zh-aria-label="统计周期"><option value="week" data-zh="每周">Weekly</option><option value="month" data-zh="每月">Monthly</option></select><select id="trend-category" aria-label="Filter by category" data-zh-aria-label="筛选大类"></select></div></div>
+<div class="trend-nav"><button type="button" id="trend-prev" aria-label="Previous period" data-zh-aria-label="上一周期">‹</button><strong id="trend-range"></strong><button type="button" id="trend-next" aria-label="Next period" data-zh-aria-label="下一周期">›</button><button type="button" id="trend-now"><span data-zh="本期">Current period</span></button></div>
 <p class="small" id="trend-info"></p>
-<div class="trend-scroll"><div id="trend-chart" class="trend-plot" role="group" aria-label="每日用时堆叠柱状图"></div></div>
-<ul id="trend-legend" class="legend small" aria-label="各项累计用时"></ul>
+<div class="trend-scroll"><div id="trend-chart" class="trend-plot" role="group" aria-label="Stacked bar chart of daily focus time" data-zh-aria-label="每日用时堆叠柱状图"></div></div>
+<ul id="trend-legend" class="legend small" aria-label="Total time by category or item" data-zh-aria-label="各项累计用时"></ul>
 </section>
-<footer>统计使用设备的本地日期。休息时间不会计入专注时长。</footer>
+<footer><span data-zh="统计使用设备的本地日期。休息时间不会计入专注时长。">Dates use your device’s time zone. Breaks are excluded from focus time.</span></footer>
 </main>
 <dialog id="edit-dialog" aria-labelledby="edit-title">
-<h2 id="edit-title">编辑专注记录</h2>
+<h2 id="edit-title"><span data-zh="编辑专注记录">Edit focus record</span></h2>
 <form id="edit-form" class="form">
-<label>事项<select id="edit-project" required></select></label>
-<label>日期<input id="edit-date" type="date" required></label>
-<div class="row"><label>分钟<input id="edit-minutes" type="number" min="0" step="1" required></label><label>秒<input id="edit-seconds" type="number" min="0" max="59" step="1" required></label></div>
-<label>学到了什么<textarea id="edit-note" rows="4" maxlength="2000"></textarea></label>
+<label><span data-zh="事项">Item</span><select id="edit-project" required></select></label>
+<label><span data-zh="日期">Date</span><input id="edit-date" type="date" required></label>
+<div class="row"><label><span data-zh="分钟">Minutes</span><input id="edit-minutes" type="number" min="0" step="1" required></label><label><span data-zh="秒">Seconds</span><input id="edit-seconds" type="number" min="0" max="59" step="1" required></label></div>
+<label><span data-zh="学到了什么">What did you learn?</span><textarea id="edit-note" rows="4" maxlength="2000"></textarea></label>
 <div class="msg" id="edit-message" role="status"></div>
-<div class="actions edit-buttons"><button type="button" id="edit-cancel">取消</button><button type="submit" class="primary">保存修改</button></div>
+<div class="actions edit-buttons"><button type="button" id="edit-cancel"><span data-zh="取消">Cancel</span></button><button type="submit" class="primary"><span data-zh="保存修改">Save changes</span></button></div>
 </form>
 </dialog>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
 const key = 'focus-desk.v1';
+const copy = ['textContent', 'placeholder', 'aria-label'].flatMap(property => {
+  const attribute = property === 'textContent' ? 'data-zh' : 'data-zh-' + property;
+  return [...document.querySelectorAll('[' + attribute + ']')].map(node => ({
+    node, property, zh:node.getAttribute(attribute),
+    en:property === 'textContent' ? node.textContent : node.getAttribute(property)
+  }));
+});
+const tr = (zh, en) => data.language === 'zh-CN' ? zh : en;
+function renderLanguage() {
+  const language = tr('zh-CN', 'en');
+  document.documentElement.lang = language;
+  $('language').value = language;
+  for (const {node, property, zh, en} of copy) {
+    const value = language === 'zh-CN' ? zh : en;
+    if (property === 'textContent') node.textContent = value;
+    else node.setAttribute(property, value);
+  }
+}
 const defaults = {projects:[{id:'study',name:'通用学习',kind:'学习'},{id:'project',name:'个人项目',kind:'项目'}],records:[],session:null,selected:'study',minutes:25};
 let data = structuredClone(defaults);
 try {
   const saved = localStorage.getItem(key);
   if (saved) data = JSON.parse(saved);
 } catch {
-  $('timer-message').textContent = '无法读取浏览器里的记录。';
+  $('timer-message').textContent = tr('无法读取浏览器里的记录。', "Could not read the records saved in this browser.");
 }
 function restoreCategories() {
   if (data.categories) return;
@@ -130,7 +150,7 @@ function save() {
   try {
     localStorage.setItem(key, JSON.stringify(data));
   } catch {
-    $('timer-message').textContent = '浏览器存储不可用，关闭页面后本次更改可能丢失。';
+    $('timer-message').textContent = tr('浏览器存储不可用，关闭页面后本次更改可能丢失。', "Browser storage is unavailable. Changes may be lost when you close this page.");
   }
 }
 function dayOf(time = Date.now()) {
@@ -142,11 +162,18 @@ function id() {
 }
 function human(ms) {
   const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return seconds + ' 秒';
+  if (seconds < 60) return seconds + tr(' 秒', ' sec');
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return minutes + ' 分钟';
+  if (minutes < 60) return minutes + tr(' 分钟', ' min');
   const rest = minutes % 60;
-  return Math.floor(minutes / 60) + ' 小时' + (rest ? ' ' + rest + ' 分钟' : '');
+  return Math.floor(minutes / 60) + tr(' 小时', ' hr') + (rest ? ' ' + rest + tr(' 分钟', ' min') : '');
+}
+function displayName(item) {
+  if (item.id === 'learning' && item.name === '学习') return tr('学习', 'Study');
+  if (item.id === 'projects' && item.name === '项目') return tr('项目', 'Projects');
+  if (item.id === 'study' && item.name === '通用学习') return tr('通用学习', 'General study');
+  if (item.id === 'project' && item.name === '个人项目') return tr('个人项目', 'Personal project');
+  return item.name;
 }
 function fillProjects() {
   for (const picker of [$('project'), $('manual-project'), $('edit-project')]) {
@@ -156,19 +183,19 @@ function fillProjects() {
       const projects = data.projects.filter(project => project.category === category.id);
       if (!projects.length) continue;
       const group = document.createElement('optgroup');
-      group.label = category.name;
-      group.append(...projects.map(project => new Option(project.name, project.id)));
+      group.label = displayName(category);
+      group.append(...projects.map(project => new Option(displayName(project), project.id)));
       picker.append(group);
     }
     picker.value = selected;
   }
   const categoryPicker = $('category');
   const selectedCategory = categoryPicker.value || data.categories[0].id;
-  categoryPicker.replaceChildren(...data.categories.map(category => new Option(category.name, category.id)));
+  categoryPicker.replaceChildren(...data.categories.map(category => new Option(displayName(category), category.id)));
   categoryPicker.value = selectedCategory;
   const trendPicker = $('trend-category');
   const selectedTrend = trendPicker.value;
-  trendPicker.replaceChildren(new Option('所有大类', ''), ...data.categories.map(category => new Option(category.name, category.id)));
+  trendPicker.replaceChildren(new Option(tr('所有大类', 'All categories'), ''), ...data.categories.map(category => new Option(displayName(category), category.id)));
   trendPicker.value = selectedTrend;
 }
 function element(tag, value, className) {
@@ -181,13 +208,13 @@ function renderDaily() {
   renderTrend();
   const records = data.records.filter(r => r.day === $('day').value).sort((a, b) => b.at - a.at);
   const total = records.reduce((sum, r) => sum + r.ms, 0);
-  $('total').textContent = total ? human(total) : '0 分钟';
-  $('count').textContent = records.length + ' 条记录';
+  $('total').textContent = total ? human(total) : tr('0 分钟', "0 min");
+  $('count').textContent = records.length + tr(' 条记录', records.length === 1 ? ' record' : ' records');
   $('summary').replaceChildren();
   $('records').replaceChildren();
   if (!records.length) {
-    $('summary').append(element('div', '这一天还没有专注记录。', 'empty'));
-    $('records').append(element('div', '暂无明细', 'empty'));
+    $('summary').append(element('div', tr('这一天还没有专注记录。', "No focus records on this date."), 'empty'));
+    $('records').append(element('div', tr('暂无明细', "No records yet."), 'empty'));
     return;
   }
   const totals = new Map();
@@ -201,11 +228,11 @@ function renderDaily() {
   }).filter(group => group.ms > 0).sort((a,b) => b.ms - a.ms);
   for (const {category, items, ms} of groups) {
     const group = element('details', '', 'group');
-    const heading = element('summary', category.name);
+    const heading = element('summary', displayName(category));
     heading.append(element('strong', human(ms)));
     group.append(heading);
     for (const project of items) {
-      group.append(projectMetric(project.name, totals.get(project.id), ms));
+      group.append(projectMetric(displayName(project), totals.get(project.id), ms));
     }
     $('summary').append(group);
   }
@@ -214,16 +241,16 @@ function renderDaily() {
     const label = element('div', '');
     const project = data.projects.find(p => p.id === record.project);
     const category = data.categories.find(c => c.id === project.category);
-    const name = category.name + ' / ' + project.name;
-    label.append(element('strong', name), element('span', (record.manual ? '手动补记' : '番茄钟') + ' · ' + human(record.ms), 'small'));
+    const name = displayName(category) + ' / ' + displayName(project);
+    label.append(element('strong', name), element('span', (record.manual ? tr('手动补记', "Manual entry") : tr('番茄钟', "Pomodoro")) + ' · ' + human(record.ms), 'small'));
     if (record.note) label.append(element('p', record.note, 'record-note'));
-    const remove = element('button', '删除', 'ghost');
-    const edit = element('button', '编辑', 'ghost');
-    edit.setAttribute('aria-label', '编辑 ' + name + ' 的记录');
+    const remove = element('button', tr('删除', "Delete"), 'ghost');
+    const edit = element('button', tr('编辑', "Edit"), 'ghost');
+    edit.setAttribute('aria-label', tr('编辑 ' + name + ' 的记录', 'Edit record for ' + name));
     edit.onclick = () => openEdit(record);
-    remove.setAttribute('aria-label', '删除 ' + name + ' 的 ' + human(record.ms) + '记录');
+    remove.setAttribute('aria-label', tr('删除 ' + name + ' 的 ' + human(record.ms) + '记录', 'Delete ' + human(record.ms) + ' record for ' + name));
     remove.onclick = () => {
-      if (!confirm('删除这条专注记录？')) return;
+      if (!confirm(tr('删除这条专注记录？', "Delete this focus record?"))) return;
       data.records = data.records.filter(r => r.id !== record.id);
       save();
       renderDaily();
@@ -262,13 +289,13 @@ $('edit-form').onsubmit = event => {
   event.preventDefault();
   const record = data.records.find(record => record.id === editingId);
   if (!record) {
-    $('edit-message').textContent = '这条记录已被删除。';
+    $('edit-message').textContent = tr('这条记录已被删除。', "This record was deleted.");
     return;
   }
   const seconds = 60 * Number($('edit-minutes').value) + Number($('edit-seconds').value);
   const existingSeconds = Math.floor(record.ms / 1000);
   if ((seconds < 1 && seconds !== existingSeconds) || seconds > 86400) {
-    $('edit-message').textContent = '请输入 1 秒到 24 小时之间的时长。';
+    $('edit-message').textContent = tr('请输入 1 秒到 24 小时之间的时长。', "Enter a duration from 1 second to 24 hours.");
     return;
   }
   record.project = $('edit-project').value;
@@ -281,7 +308,7 @@ $('edit-form').onsubmit = event => {
   $('edit-dialog').close();
   $('day').value = record.day;
   $('day').onchange();
-  $('daily-message').textContent = '记录已更新。';
+  $('daily-message').textContent = tr('记录已更新。', "Record updated.");
 };
 
 const chartColors = ['#ab3d2d','#476548','#335f87','#976b22','#87517d','#2e7974','#6a5a48','#a65c76'];
@@ -306,7 +333,7 @@ function renderTrend() {
   const {start, end} = trendPeriod();
   const first = dayOf(start);
   const last = dayOf(offsetDay(end, -1));
-  $('trend-range').textContent = first + ' 至 ' + last;
+  $('trend-range').textContent = first + tr(' 至 ', ' to ') + last;
   const category = $('trend-category').value;
   const series = category
     ? data.projects.filter(project => project.category === category)
@@ -330,7 +357,7 @@ function renderTrend() {
   chart.replaceChildren();
   legend.replaceChildren();
   const total = [...totals.values()].reduce((sum, ms) => sum + ms, 0);
-  $('trend-info').textContent = total ? '合计 ' + human(total) + ' · 点柱子查看当天记录' : '这个周期还没有专注记录。';
+  $('trend-info').textContent = total ? tr('合计 ', 'Total ') + human(total) + tr(' · 点柱子查看当天记录', ' · Select a bar to view that day’s records') : tr('这个周期还没有专注记录。', 'No focus records in this period.');
   if (!total) return;
   const peak = Math.max(...[...byDay.values()].map(entry => entry.total));
   const shown = series.map((item, index) => ({...item, color:chartColors[index % chartColors.length]}))
@@ -339,7 +366,7 @@ function renderTrend() {
     const row = element('li', '');
     const swatch = element('span', '', 'swatch');
     swatch.style.backgroundColor = item.color;
-    row.append(swatch, element('span', item.name + ' · ' + human(totals.get(item.id))));
+    row.append(swatch, element('span', displayName(item) + ' · ' + human(totals.get(item.id))));
     legend.append(row);
   }
   let count = 0;
@@ -358,9 +385,9 @@ function renderTrend() {
       segment.style.height = (ms / peak * 100) + '%';
       segment.style.backgroundColor = item.color;
       stack.append(segment);
-      parts.push(item.name + ' ' + human(ms));
+      parts.push(displayName(item) + ' ' + human(ms));
     }
-    const label = day + ' · ' + (entry ? human(entry.total) + '（' + parts.join('，') + '）' : '0 分钟');
+    const label = day + ' · ' + (entry ? human(entry.total) + tr('（', ' (') + parts.join(tr('，', ', ')) + tr('）', ')') : tr('0 分钟', '0 min'));
     button.title = label;
     button.setAttribute('aria-label', label);
     button.setAttribute('aria-current', String(day === $('day').value));
@@ -439,7 +466,7 @@ async function enableAudio() {
     await audioContext.resume();
     syncTickSound();
   } catch {
-    $('timer-message').textContent = '当前浏览器无法播放滴答声，计时仍会继续。';
+    $('timer-message').textContent = tr('当前浏览器无法播放滴答声，计时仍会继续。', "This browser could not play the ticking sound. The timer will continue.");
   }
 }
 
@@ -485,9 +512,9 @@ function finish(completed) {
     recordSession(session);
     data.focusNote = '';
     $('focus-note').value = '';
-    $('timer-message').textContent = (completed ? '番茄完成，已记录 ' : '已记录 ') + human(ms) + '。';
+    $('timer-message').textContent = (completed ? tr('番茄完成，已记录 ', 'Pomodoro complete. Logged ') : tr('已记录 ', 'Logged ')) + human(ms) + tr('。', '.');
   } else {
-    $('timer-message').textContent = session.mode === 'break' ? (completed ? '休息结束。' : '已结束休息。') : '专注不足 1 秒。';
+    $('timer-message').textContent = session.mode === 'break' ? (completed ? tr('休息结束。', "Break complete.") : tr('已结束休息。', "Break ended.")) : tr('专注不足 1 秒。', "Focus time was under 1 second.");
   }
   if (completed) mode = session.mode === 'focus' ? 'break' : 'focus';
   save();
@@ -507,17 +534,17 @@ function renderTimer() {
   $('ring').style.setProperty('--arc', (100 * remaining / target) + '%');
   const resting = mode === 'break';
   const running = session && session.start !== null;
-  $('mode').textContent = resting ? '休息' : '专注';
-  $('state').textContent = running ? (resting ? '休息中' : '专注中') : session ? '已暂停' : '准备开始';
-  $('start').textContent = running ? '暂停' : session ? '继续' : resting ? '开始休息' : '开始专注';
-  $('finish').textContent = resting ? '结束休息' : '结束并记录';
-  $('switch').textContent = resting ? '切回专注' : '休息 5 分钟';
+  $('mode').textContent = resting ? tr('休息', "Break") : tr('专注', "Focus");
+  $('state').textContent = running ? (resting ? tr('休息中', "On a break") : tr('专注中', "Focusing")) : session ? tr('已暂停', "Paused") : tr('准备开始', "Ready to start");
+  $('start').textContent = running ? tr('暂停', "Pause") : session ? tr('继续', "Resume") : resting ? tr('开始休息', "Start break") : tr('开始专注', "Start focus");
+  $('finish').textContent = resting ? tr('结束休息', "End break") : tr('结束并记录', "End and log");
+  $('switch').textContent = resting ? tr('切回专注', "Back to focus") : tr('休息 5 分钟', "5-minute break");
   $('finish').disabled = !session;
   $('switch').disabled = Boolean(session);
   $('duration').disabled = Boolean(session) || resting;
   $('project').disabled = Boolean(session);
   syncTickSound();
-  document.title = session ? $('clock').textContent + ' · 番茄工位' : '番茄工位 · 专注计时与每日记录';
+  document.title = session ? $('clock').textContent + tr(' · 番茄工位', ' · Focus Desk') : tr('番茄工位 · 专注计时与每日记录', 'Focus Desk · Pomodoro and daily log');
 }
 $('start').onclick = () => {
   if (data.session && elapsed(data.session) >= data.session.target) return finish(true);
@@ -574,7 +601,7 @@ $('manual').onsubmit = event => {
   $('day').value = day;
   trendAnchor = day;
   $('manual-minutes').value = '';
-  $('daily-message').textContent = '补记已保存。';
+  $('daily-message').textContent = tr('补记已保存。', "Manual entry saved.");
   save();
   renderDaily();
 };
@@ -582,7 +609,7 @@ $('add-category').onsubmit = event => {
   event.preventDefault();
   const name = $('category-name').value.trim();
   if (!name || data.categories.some(category => category.name.toLowerCase() === name.toLowerCase())) {
-    $('add-message').textContent = name ? '这个大类已经存在。' : '请输入大类名称。';
+    $('add-message').textContent = name ? tr('这个大类已经存在。', "This category already exists.") : tr('请输入大类名称。', "Enter a category name.");
     return;
   }
   const category = {id:id(), name};
@@ -591,7 +618,7 @@ $('add-category').onsubmit = event => {
   $('category').value = category.id;
   $('category-name').value = '';
   $('name').focus();
-  $('add-message').textContent = '已新增「' + name + '」，现在可以添加事项。';
+  $('add-message').textContent = tr('已新增「' + name + '」，现在可以添加事项。', 'Added “' + name + '”. You can now add items.');
   save();
 };
 $('add').onsubmit = event => {
@@ -599,11 +626,11 @@ $('add').onsubmit = event => {
   const name = $('name').value.trim();
   const category = $('category').value;
   if (!name) {
-    $('add-message').textContent = '请输入事项名称。';
+    $('add-message').textContent = tr('请输入事项名称。', "Enter an item name.");
     return;
   }
   if (data.projects.some(p => nameKey(p.name) === nameKey(name) && p.category === category)) {
-    $('add-message').textContent = '这个大类下已有同名事项。';
+    $('add-message').textContent = tr('这个大类下已有同名事项。', "An item with this name already exists in this category.");
     return;
   }
   const project = {id:id(), name, category};
@@ -611,13 +638,14 @@ $('add').onsubmit = event => {
   if (!data.session) data.selected = project.id;
   fillProjects();
   $('name').value = '';
-  $('add-message').textContent = '已添加「' + name + '」。';
+  $('add-message').textContent = tr('已添加「' + name + '」。', 'Added “' + name + '”.');
   save();
 };
 window.addEventListener('storage', event => {
   if (event.key !== key || !event.newValue) return;
   data = JSON.parse(event.newValue);
   restoreData();
+  renderLanguage();
   if ($('focus-note').value !== (data.focusNote ?? '')) $('focus-note').value = data.focusNote ?? '';
   $('tick-sound').checked = data.tickSound !== false;
   mode = data.session?.mode || 'focus';
@@ -631,9 +659,19 @@ $('day').value = $('manual-date').value = today;
 $('duration').value = data.minutes;
 $('tick-sound').checked = data.tickSound !== false;
 $('focus-note').value = data.focusNote ?? '';
+renderLanguage();
 fillProjects();
 renderDaily();
 renderTimer();
+$('language').onchange = () => {
+  data.language = $('language').value;
+  save();
+  renderLanguage();
+  for (const id of ['timer-message', 'daily-message', 'add-message', 'edit-message']) $(id).textContent = '';
+  fillProjects();
+  renderDaily();
+  renderTimer();
+};
 if (data.session?.mode === 'focus' && data.session.start !== null) {
   document.addEventListener('click', () => {
     if (data.session?.mode === 'focus' && data.session.start !== null) void enableAudio();
