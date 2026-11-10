@@ -14,6 +14,9 @@ input,select,button{border:1px solid var(--line);border-radius:10px;background:v
 .group{margin-top:12px;padding-top:10px}.group summary strong{float:right;margin-left:10px}.group summary,.metric span{overflow-wrap:anywhere}.group .metric{padding-left:14px}.settings label{min-width:0}.item-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) auto;gap:8px;align-items:end}@media(max-width:410px){.item-fields{grid-template-columns:minmax(0,1fr) auto}.item-fields label:first-child{grid-column:1/-1}}
 </style>
 <style>
+textarea{font:inherit;color:inherit;background:var(--white);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%;resize:vertical;margin-top:4px;font-weight:400}textarea:focus-visible{outline:3px solid #548655;outline-offset:3px}.focus-note{text-align:left;margin-top:14px}.record-note{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;margin:5px 0 0}
+</style>
+<style>
 .record-actions,.trend-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.record-actions{justify-content:flex-end;flex-shrink:0}.trend-card{margin-top:20px}.trend-actions select{width:auto}.trend-nav{display:flex;align-items:center;gap:8px;margin-top:12px}.trend-nav button{padding:4px 10px}.trend-nav strong{font-size:13px}.trend-scroll{overflow-x:auto;padding:8px 3px 5px}.trend-plot{display:grid;gap:4px;min-width:var(--plot-width);margin-top:8px}.trend-day{padding:0;border:0;display:grid;grid-template-rows:145px 24px;background:transparent;align-items:end;min-width:0}.trend-day:hover,.trend-day[aria-current=true]{background:#f2ece2}.trend-stack{height:100%;display:flex;flex-direction:column-reverse;align-items:stretch;max-width:44px;width:75%;margin:auto;border-bottom:1px solid var(--line)}.trend-stack span{display:block;flex:none}.trend-day small{align-self:center;white-space:nowrap;font-size:11px}.legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:0;margin:12px 0 0;list-style:none}.legend li{display:flex;align-items:center;gap:6px;overflow-wrap:anywhere}.swatch{width:10px;height:10px;border-radius:2px;flex:none}dialog{width:min(420px,calc(100% - 28px));border:1px solid var(--line);border-radius:18px;background:var(--white);color:var(--ink);padding:22px}dialog::backdrop{background:#28272066}.edit-buttons{justify-content:flex-end}
 </style>
 </head>
@@ -30,6 +33,7 @@ input,select,button{border:1px solid var(--line);border-radius:10px;background:v
 <div class="actions"><button class="primary" id="start">开始专注</button><button id="finish" disabled>结束并记录</button><button id="switch" class="ghost">休息 5 分钟</button></div>
 <div class="settings row"><label>当前事项<select id="project"></select></label><label style="flex:0 0 108px">专注时长（分钟）<input id="duration" type="number" min="1" max="180" value="25" required></label></div>
 <label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px"><input id="tick-sound" type="checkbox" style="width:auto;margin:0;accent-color:var(--red)">专注滴答声</label>
+<div class="focus-note"><label for="focus-note">学到了什么 <span class="small">（选填）</span></label><textarea id="focus-note" rows="3" maxlength="2000" aria-describedby="note-hint" placeholder="例如：理解了 KV Cache 如何减少重复计算"></textarea><p class="small" id="note-hint">草稿会自动保留，结束专注时随记录一起保存。</p></div>
 <div class="msg" id="timer-message" role="status"></div>
 </section>
 <div class="col">
@@ -65,6 +69,7 @@ input,select,button{border:1px solid var(--line);border-radius:10px;background:v
 <label>事项<select id="edit-project" required></select></label>
 <label>日期<input id="edit-date" type="date" required></label>
 <div class="row"><label>分钟<input id="edit-minutes" type="number" min="0" step="1" required></label><label>秒<input id="edit-seconds" type="number" min="0" max="59" step="1" required></label></div>
+<label>学到了什么<textarea id="edit-note" rows="4" maxlength="2000"></textarea></label>
 <div class="msg" id="edit-message" role="status"></div>
 <div class="actions edit-buttons"><button type="button" id="edit-cancel">取消</button><button type="submit" class="primary">保存修改</button></div>
 </form>
@@ -211,6 +216,7 @@ function renderDaily() {
     const category = data.categories.find(c => c.id === project.category);
     const name = category.name + ' / ' + project.name;
     label.append(element('strong', name), element('span', (record.manual ? '手动补记' : '番茄钟') + ' · ' + human(record.ms), 'small'));
+    if (record.note) label.append(element('p', record.note, 'record-note'));
     const remove = element('button', '删除', 'ghost');
     const edit = element('button', '编辑', 'ghost');
     edit.setAttribute('aria-label', '编辑 ' + name + ' 的记录');
@@ -247,6 +253,7 @@ function openEdit(record) {
   const seconds = Math.floor(record.ms / 1000);
   $('edit-minutes').value = Math.floor(seconds / 60);
   $('edit-seconds').value = seconds % 60;
+  $('edit-note').value = record.note ?? '';
   $('edit-message').textContent = '';
   $('edit-dialog').showModal();
 }
@@ -267,6 +274,9 @@ $('edit-form').onsubmit = event => {
   record.project = $('edit-project').value;
   record.day = $('edit-date').value;
   if (seconds !== existingSeconds) record.ms = seconds * 1000;
+  const note = $('edit-note').value.trim();
+  if (note) record.note = note;
+  else delete record.note;
   save();
   $('edit-dialog').close();
   $('day').value = record.day;
@@ -459,8 +469,11 @@ function recordSession(session) {
       cursor = stop;
     }
   }
+  const note = (data.focusNote ?? '').trim();
   for (const [day, entry] of days) {
-    data.records.push({id:id(), project:session.project, day, ...entry});
+    const record = {id:id(), project:session.project, day, ...entry};
+    if (note) record.note = note;
+    data.records.push(record);
   }
 }
 function finish(completed) {
@@ -470,6 +483,8 @@ function finish(completed) {
   data.session = null;
   if (session.mode === 'focus' && ms >= 1000) {
     recordSession(session);
+    data.focusNote = '';
+    $('focus-note').value = '';
     $('timer-message').textContent = (completed ? '番茄完成，已记录 ' : '已记录 ') + human(ms) + '。';
   } else {
     $('timer-message').textContent = session.mode === 'break' ? (completed ? '休息结束。' : '已结束休息。') : '专注不足 1 秒。';
@@ -524,6 +539,10 @@ $('tick-sound').onchange = () => {
   save();
   syncTickSound();
   if (data.tickSound && data.session?.mode === 'focus' && data.session.start !== null) void enableAudio();
+};
+$('focus-note').oninput = () => {
+  data.focusNote = $('focus-note').value;
+  save();
 };
 $('finish').onclick = () => finish(elapsed(data.session) >= data.session.target);
 $('switch').onclick = () => {
@@ -599,6 +618,7 @@ window.addEventListener('storage', event => {
   if (event.key !== key || !event.newValue) return;
   data = JSON.parse(event.newValue);
   restoreData();
+  if ($('focus-note').value !== (data.focusNote ?? '')) $('focus-note').value = data.focusNote ?? '';
   $('tick-sound').checked = data.tickSound !== false;
   mode = data.session?.mode || 'focus';
   $('duration').value = data.minutes;
@@ -610,6 +630,7 @@ let today = dayOf();
 $('day').value = $('manual-date').value = today;
 $('duration').value = data.minutes;
 $('tick-sound').checked = data.tickSound !== false;
+$('focus-note').value = data.focusNote ?? '';
 fillProjects();
 renderDaily();
 renderTimer();
