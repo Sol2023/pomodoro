@@ -25,6 +25,7 @@ input,select,button{border:1px solid var(--line);border-radius:10px;background:v
 <div class="ring" id="ring"><div class="face"><div class="time" id="clock" role="timer">25:00</div><small id="state">准备开始</small></div></div>
 <div class="actions"><button class="primary" id="start">开始专注</button><button id="finish" disabled>结束并记录</button><button id="switch" class="ghost">休息 5 分钟</button></div>
 <div class="settings row"><label>当前事项<select id="project"></select></label><label style="flex:0 0 108px">专注时长（分钟）<input id="duration" type="number" min="1" max="180" value="25" required></label></div>
+<label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px"><input id="tick-sound" type="checkbox" style="width:auto;margin:0;accent-color:var(--red)">专注滴答声</label>
 <div class="msg" id="timer-message" role="status"></div>
 </section>
 <div class="col">
@@ -137,6 +138,58 @@ function renderDaily() {
   }
 }
 let mode = data.session?.mode || 'focus';
+let audioContext;
+let tickBuffer;
+let tickSource;
+let soundingStart;
+
+function syncTickSound() {
+  const session = data.session;
+  const shouldTick = data.tickSound !== false && session?.mode === 'focus' && session.start !== null;
+  const remaining = shouldTick ? session.target - elapsed(session) : 0;
+  if (tickSource && (remaining <= 0 || soundingStart !== session?.start)) {
+    tickSource.stop();
+    tickSource = null;
+  }
+  if (tickSource || remaining <= 0 || audioContext?.state !== 'running') return;
+
+  const source = audioContext.createBufferSource();
+  source.buffer = tickBuffer;
+  source.loop = true;
+  source.connect(audioContext.destination);
+  const start = audioContext.currentTime;
+  source.start(start);
+  source.stop(start + remaining / 1000);
+  tickSource = source;
+  soundingStart = session.start;
+}
+
+async function enableAudio() {
+  if (data.tickSound === false) return;
+  try {
+    if (!audioContext) {
+      const Audio = window.AudioContext || window.webkitAudioContext;
+      if (!Audio) return;
+      audioContext = new Audio();
+      const rate = audioContext.sampleRate;
+      tickBuffer = audioContext.createBuffer(1, rate, rate);
+      const samples = tickBuffer.getChannelData(0);
+      // A short, damped click followed by silence forms a one-second loop.
+      const clickLength = Math.floor(rate * 0.035);
+      for (let i = 0; i < clickLength; i++) {
+        const time = i / rate;
+        const envelope = Math.min(1, time * 1500) * Math.exp(-time * 165);
+        samples[i] = 0.13 * envelope * (0.6 * Math.sin(2 * Math.PI * 1650 * time)
+          + 0.4 * (2 * Math.random() - 1));
+      }
+    }
+    await audioContext.resume();
+    syncTickSound();
+  } catch {
+    $('timer-message').textContent = '当前浏览器无法播放滴答声，计时仍会继续。';
+  }
+}
+
 function elapsed(session, now = Date.now()) {
   const previous = session.spans.reduce((sum, span) => sum + span[1] - span[0], 0);
   return Math.min(session.target, previous + (session.start === null ? 0 : Math.max(0, now - session.start)));
@@ -205,6 +258,7 @@ function renderTimer() {
   $('switch').disabled = Boolean(session);
   $('duration').disabled = Boolean(session) || resting;
   $('project').disabled = Boolean(session);
+  syncTickSound();
   document.title = session ? $('clock').textContent + ' · 番茄工位' : '番茄工位 · 专注计时与每日记录';
 }
 $('start').onclick = () => {
@@ -220,6 +274,13 @@ $('start').onclick = () => {
   }
   save();
   renderTimer();
+  if (data.session?.mode === 'focus' && data.session.start !== null) void enableAudio();
+};
+$('tick-sound').onchange = () => {
+  data.tickSound = $('tick-sound').checked;
+  save();
+  syncTickSound();
+  if (data.tickSound && data.session?.mode === 'focus' && data.session.start !== null) void enableAudio();
 };
 $('finish').onclick = () => finish(elapsed(data.session) >= data.session.target);
 $('switch').onclick = () => {
@@ -276,6 +337,7 @@ $('add').onsubmit = event => {
 window.addEventListener('storage', event => {
   if (event.key !== key || !event.newValue) return;
   data = JSON.parse(event.newValue);
+  $('tick-sound').checked = data.tickSound !== false;
   mode = data.session?.mode || 'focus';
   $('duration').value = data.minutes;
   fillProjects();
@@ -285,9 +347,15 @@ window.addEventListener('storage', event => {
 let today = dayOf();
 $('day').value = $('manual-date').value = today;
 $('duration').value = data.minutes;
+$('tick-sound').checked = data.tickSound !== false;
 fillProjects();
 renderDaily();
 renderTimer();
+if (data.session?.mode === 'focus' && data.session.start !== null) {
+  document.addEventListener('click', () => {
+    if (data.session?.mode === 'focus' && data.session.start !== null) void enableAudio();
+  }, {once:true});
+}
 function tick() {
   const current = dayOf();
   if (today !== current && $('day').value === today) {
